@@ -1,0 +1,179 @@
+# MeshLogic Agent Helm Chart Values
+# https://meshlogic.ai/docs/kubernetes
+
+# -- Agent configuration
+agent:
+  # -- Your MeshLogic customer ID (required)
+  customerId: ""
+  # -- Safety tier (1=user-mode, 2=read-only eBPF, 3=controlled blocking)
+  safetyTier: 2
+  # -- AWS region for telemetry
+  region: "ap-southeast-2"
+
+# -- Image configuration
+image:
+  # -- Container registry
+  registry: registry.meshlogic.ai
+  # -- Image repository
+  repository: meshlogic/agent
+  # -- Image tag (defaults to Chart appVersion)
+  tag: ""
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+
+# -- Image pull secrets for private registry
+imagePullSecrets:
+  - name: meshlogic-registry
+
+# -- Number of replicas (for DaemonSet, this is ignored)
+replicaCount: 1
+
+# -- Service account configuration
+serviceAccount:
+  # -- Create a service account
+  create: true
+  # -- Service account name
+  name: meshlogic-agent
+  # -- Annotations for the service account (e.g., for IRSA)
+  annotations: {}
+    # eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/meshlogic-agent
+
+# -- Pod annotations
+podAnnotations: {}
+
+# -- Pod labels
+podLabels: {}
+
+# -- Pod security context
+podSecurityContext: {}
+
+# -- Container security context (requires privileged for eBPF)
+securityContext:
+  privileged: true
+  capabilities:
+    add:
+      - SYS_ADMIN
+      - SYS_PTRACE
+      - NET_ADMIN
+      - BPF
+      - PERFMON
+
+# -- Resource limits and requests
+resources:
+  limits:
+    cpu: "500m"
+    memory: "256Mi"
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+
+# -- Node selector
+nodeSelector:
+  kubernetes.io/os: linux
+
+# -- Tolerations (to run on all nodes including masters)
+tolerations:
+  - operator: Exists
+
+# -- Affinity rules
+affinity: {}
+
+# -- eBPF configuration
+ebpf:
+  # -- Enable process monitoring
+  enableProcess: true
+  # -- Enable file monitoring
+  enableFile: true
+  # -- Enable network monitoring
+  enableNetwork: true
+  # -- Ring buffer size in bytes
+  ringBufferSize: 1048576
+  # -- Paths to exclude from monitoring
+  mutePaths:
+    - /proc
+    - /sys
+    - /dev
+
+# -- Privacy configuration
+privacy:
+  # -- Differential privacy epsilon (lower = more private)
+  epsilon: 1.0
+  # -- Enable noise injection
+  enableNoise: true
+
+# -- Telemetry configuration
+telemetry:
+  # -- Batch size for DynamoDB writes
+  batchSize: 25
+  # -- Flush interval in seconds
+  flushIntervalSecs: 5
+
+# -- AWS configuration
+aws:
+  # -- Use IRSA for authentication (recommended)
+  useIRSA: true
+  # -- Secret name containing AWS credentials (if not using IRSA)
+  credentialsSecret: ""
+  # -- Secret key for access key ID
+  accessKeyIdKey: "aws-access-key-id"
+  # -- Secret key for secret access key
+  secretAccessKeyKey: "aws-secret-access-key"
+
+# -- Logging configuration
+logging:
+  # -- Log level (trace, debug, info, warn, error)
+  level: "info"
+  # -- Output logs as JSON
+  jsonFormat: true
+
+# -- Metrics configuration
+metrics:
+  # -- Enable Prometheus metrics
+  enabled: true
+  # -- Metrics port
+  port: 9090
+  # -- Create ServiceMonitor for Prometheus Operator
+  serviceMonitor:
+    enabled: false
+    # -- Namespace for ServiceMonitor
+    namespace: ""
+    # -- Labels for ServiceMonitor
+    labels: {}
+    # -- Scrape interval
+    interval: "30s"
+
+# -- Health check configuration
+health:
+  # -- Liveness probe path
+  livenessPath: /health/live
+  # -- Readiness probe path
+  readinessPath: /health/ready
+  # -- Health check port
+  port: 8080
+
+# -- Update strategy for DaemonSet
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 1
+
+# -- Priority class name
+priorityClassName: ""
+
+# -- Host network mode (required for some network monitoring)
+hostNetwork: false
+
+# -- Host PID namespace (required for process monitoring)
+hostPID: true
+
+# -- Additional volumes
+extraVolumes: []
+
+# -- Additional volume mounts
+extraVolumeMounts: []
+
+# -- Additional environment variables
+extraEnv: []
+
+# -- Additional init containers
+initContainers: []
