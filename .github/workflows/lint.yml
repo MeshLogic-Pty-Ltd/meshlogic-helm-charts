@@ -1,0 +1,73 @@
+name: Lint and Test Charts
+
+on:
+  pull_request:
+    paths:
+      - 'charts/**'
+      - '.github/workflows/lint.yml'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.14.0
+
+      - name: Lint charts
+        run: |
+          for chart in charts/*/; do
+            echo "Linting $chart..."
+            helm lint "$chart"
+          done
+
+      - name: Template charts
+        run: |
+          for chart in charts/*/; do
+            echo "Templating $chart..."
+            helm template test "$chart" \
+              --set agent.customerId=test-customer \
+              --set aws.useIRSA=false
+          done
+
+  ct-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up chart-testing
+        uses: helm/chart-testing-action@v2.6.1
+
+      - name: Run chart-testing (lint)
+        run: ct lint --config .github/ct.yaml --all
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install helm-docs
+        run: |
+          wget https://github.com/norwoodj/helm-docs/releases/download/v1.12.0/helm-docs_1.12.0_Linux_x86_64.tar.gz
+          tar -xzf helm-docs_1.12.0_Linux_x86_64.tar.gz
+          sudo mv helm-docs /usr/local/bin/
+
+      - name: Run helm-docs
+        run: helm-docs --chart-search-root=charts
+
+      - name: Check for changes
+        run: |
+          if ! git diff --exit-code; then
+            echo "::error::Documentation is out of date. Run 'helm-docs' locally and commit the changes."
+            exit 1
+          fi
